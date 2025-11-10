@@ -7,6 +7,9 @@
 #define BUFFER_SIZE 12
 #define SAMPLE_INTERVAL (CLOCK_CONF_SECOND / 2)
 
+float light_buffer[BUFFER_SIZE];
+static int count = 0;
+
 int d1(float f)
 {
   // Integer part of the float
@@ -31,6 +34,18 @@ float getLight(void)
   return light_lx;
 }
 
+void printBuffer(void)
+{
+  int i = 0;
+  printf("Buffer = ");
+
+  for (i = 0; i < BUFFER_SIZE; i++) {
+    printf("%d.%d ", d1(light_buffer[i]), d2(light_buffer[i]));
+  }
+
+  printf("\n");
+}
+
 /*---------------------------------------------------------------------------*/
 PROCESS(coursework_process, "Coursework");
 AUTOSTART_PROCESSES(&coursework_process);
@@ -38,9 +53,8 @@ AUTOSTART_PROCESSES(&coursework_process);
 PROCESS_THREAD(coursework_process, ev, data)
 {
   static struct etimer timer; // Initialise a timer
-  static float light_buffer[BUFFER_SIZE];
-  static int count = 0; // Count current amount in buffer
-  static int head = 0;
+  //static float light_buffer[BUFFER_SIZE];
+  //static int count = 0; // Count current amount in buffer
 
   PROCESS_BEGIN();
   SENSORS_ACTIVATE(light_sensor); // Initialise the light sensor
@@ -54,17 +68,16 @@ PROCESS_THREAD(coursework_process, ev, data)
 
       // Get and store the current light value
       float light = getLight();
-      light_buffer[head] = light;
+      light_buffer[count] = light;
+      count++;
 
-      // Update head value modulo the buffer size (make it generic)
-      head = (head + 1) & BUFFER_SIZE;
+      // If we have filled the buffer, we need to process
+      if (count == BUFFER_SIZE) {
+        // First print all the values as shown in the screenshot in the brief 
+        printBuffer();
 
-      // Update count
-      if (count < BUFFER_SIZE) {
-        count++;
+        count = 0;
       }
-
-      printf("Stored light val %d.%d\nBuffer count is %d\n\n", d1(light), d2(light), count);
 
       // Restart the timer
       etimer_reset(&timer);

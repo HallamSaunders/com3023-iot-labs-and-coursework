@@ -8,6 +8,7 @@
   <project EXPORT="discard">[CONTIKI_DIR]/tools/cooja/apps/powertracker</project>
   <simulation>
     <title>coursework</title>
+    <speedlimit>1.0</speedlimit>
     <randomseed>123456</randomseed>
     <motedelay_us>1000000</motedelay_us>
     <radiomedium>
@@ -83,9 +84,9 @@
     <plugin_config>
       <filter />
     </plugin_config>
-    <width>422</width>
-    <z>3</z>
-    <height>271</height>
+    <width>1039</width>
+    <z>2</z>
+    <height>447</height>
     <location_x>400</location_x>
     <location_y>160</location_y>
   </plugin>
@@ -99,8 +100,8 @@
       <split>-1</split>
       <zoomfactor>500.0</zoomfactor>
     </plugin_config>
-    <width>822</width>
-    <z>2</z>
+    <width>399</width>
+    <z>3</z>
     <height>166</height>
     <location_x>0</location_x>
     <location_y>436</location_y>
