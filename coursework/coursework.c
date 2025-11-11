@@ -6,7 +6,12 @@
 // Initialise some of the constants we'll need
 #define BUFFER_SIZE 12
 #define SAMPLE_INTERVAL (CLOCK_CONF_SECOND / 2)
+#define LOW_DEVIATION_THRESHOLD 10
+#define HIGH_DEVIATION_THRESHOLD 20
+#define READING_INTERVAL_K 12
 
+int square_root_max_iterations = 20;
+float square_root_precision = 0.001f;
 float light_buffer[BUFFER_SIZE];
 static int count = 0;
 
@@ -46,6 +51,63 @@ void printBuffer(void)
   printf("\n");
 }
 
+void updateBuffer(void)
+{
+  float light = getLight();
+  light_buffer[count] = light;
+  count++;
+}
+
+float calculateSquareRoot(float value)
+{
+  // Calculate the square root using Babylonian method like seen in the labs, except that the initial value should be somewhat close to the real value, so let's use a heuristic sqrt value
+  float difference = 0.0;
+  float x = value;
+  while (x > 100.0f) x *= 0.1f; // Approximate square root
+  x *= 10.0f;
+  int i = 0;
+  for (i = 0; i < square_root_max_iterations; i++) {
+    x = 0.5 * (x * value / x);
+    difference = x * x - value;
+    if (difference < 0) difference = -difference;
+    if (difference < square_root_precision) break;
+  }
+  return x;
+}
+
+float calculateMean(float collection[], int start_index, int end_index)
+{
+  float total = 0;
+  int value_count = end_index - start_index;
+
+  int i = start_index;
+  for (i = start_index; i < end_index; i++) {
+    total += collection[i];
+  }
+  float mean = total / value_count;
+  return mean;
+}
+
+float calculateStandardDeviation(float collection[], float mean, int start_index, int end_index)
+{
+  int value_count = end_index - start_index;
+  float variance_sum = 0;
+
+  int i = start_index;
+  for (i = start_index; i < end_index; i++) {
+    float deviation = collection[i] - mean;
+    variance_sum += deviation * deviation;
+  }
+  float variance = variance_sum / value_count;
+  float standard_deviation = calculateSquareRoot(variance);
+  return standard_deviation;
+}
+
+void printAggregation(int degree)
+{
+  printf("Aggregation: %d-into-1.\n", degree);
+}
+
 /*---------------------------------------------------------------------------*/
 PROCESS(coursework_process, "Coursework");
 AUTOSTART_PROCESSES(&coursework_process);
@@ -53,8 +115,6 @@ AUTOSTART_PROCESSES(&coursework_process);
 PROCESS_THREAD(coursework_process, ev, data)
 {
   static struct etimer timer; // Initialise a timer
-  //static float light_buffer[BUFFER_SIZE];
-  //static int count = 0; // Count current amount in buffer
 
   PROCESS_BEGIN();
   SENSORS_ACTIVATE(light_sensor); // Initialise the light sensor
@@ -65,16 +125,25 @@ PROCESS_THREAD(coursework_process, ev, data)
     PROCESS_WAIT_EVENT();
 
     if (ev == PROCESS_EVENT_TIMER) {
-
-      // Get and store the current light value
-      float light = getLight();
-      light_buffer[count] = light;
-      count++;
+      updateBuffer();
 
       // If we have filled the buffer, we need to process
       if (count == BUFFER_SIZE) {
-        // First print all the values as shown in the screenshot in the brief 
+        // First print all the values as shown in the screenshot in the brief
         printBuffer();
+
+        // Calculate mean of these values
+        float mean = calculateMean(light_buffer, 0, BUFFER_SIZE);
+
+        // Calculate standard deviation
+        float standard_deviation = calculateStandardDeviation(light_buffer, mean, 0, BUFFER_SIZE);
+
+        // Print these values as shown in the screenshot in brief
+        printf("Standard deviation: %d.%d\n", d1(standard_deviation), d2(standard_deviation));
+
+        // Print the aggregation technique
+        printAggregation(12);
+        printf("\n");
 
         count = 0;
       }
@@ -83,7 +152,7 @@ PROCESS_THREAD(coursework_process, ev, data)
       etimer_reset(&timer);
     }
   }
-  
+
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
