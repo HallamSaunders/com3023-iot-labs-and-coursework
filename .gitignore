@@ -1,3 +1,5 @@
 *.a
 *.sky
 *.map
+*.txt
+*obj_sky/

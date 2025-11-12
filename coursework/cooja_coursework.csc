@@ -48,8 +48,8 @@
       <breakpoints />
       <interface_config>
         se.sics.cooja.interfaces.Position
-        <x>23.600612622666915</x>
-        <y>19.951190818995336</y>
+        <x>14.451756994246646</x>
+        <y>63.95879882868002</y>
         <z>0.0</z>
       </interface_config>
       <interface_config>
@@ -62,7 +62,7 @@
   <plugin>
     se.sics.cooja.plugins.SimControl
     <width>280</width>
-    <z>5</z>
+    <z>0</z>
     <height>160</height>
     <location_x>400</location_x>
     <location_y>0</location_y>
@@ -71,11 +71,11 @@
     se.sics.cooja.plugins.Visualizer
     <plugin_config>
       <skin>se.sics.cooja.plugins.skins.IDVisualizerSkin</skin>
-      <viewport>0.9090909090909091 0.0 0.0 0.9090909090909091 165.54489761575735 151.86255380091333</viewport>
+      <viewport>0.9090909090909091 0.0 0.0 0.9090909090909091 180.86203909613943 114.85563742847272</viewport>
     </plugin_config>
     <width>400</width>
     <z>4</z>
-    <height>200</height>
+    <height>400</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
   </plugin>
@@ -84,27 +84,11 @@
     <plugin_config>
       <filter />
     </plugin_config>
-    <width>1039</width>
-    <z>2</z>
-    <height>447</height>
+    <width>1363</width>
+    <z>1</z>
+    <height>563</height>
     <location_x>400</location_x>
     <location_y>160</location_y>
-  </plugin>
-  <plugin>
-    se.sics.cooja.plugins.TimeLine
-    <plugin_config>
-      <mote>0</mote>
-      <showRadioRXTX />
-      <showRadioHW />
-      <showLEDs />
-      <split>-1</split>
-      <zoomfactor>500.0</zoomfactor>
-    </plugin_config>
-    <width>399</width>
-    <z>3</z>
-    <height>166</height>
-    <location_x>0</location_x>
-    <location_y>436</location_y>
   </plugin>
   <plugin>
     se.sics.cooja.plugins.Notes
@@ -112,18 +96,10 @@
       <notes>Enter notes here</notes>
       <decorations>true</decorations>
     </plugin_config>
-    <width>142</width>
-    <z>6</z>
+    <width>232</width>
+    <z>3</z>
     <height>160</height>
     <location_x>680</location_x>
-    <location_y>0</location_y>
-  </plugin>
-  <plugin>
-    se.sics.cooja.plugins.SimControl
-    <width>280</width>
-    <z>0</z>
-    <height>160</height>
-    <location_x>400</location_x>
     <location_y>0</location_y>
   </plugin>
   <plugin>
@@ -133,11 +109,11 @@
       <interface>Temperature and Light</interface>
       <scrollpos>0,0</scrollpos>
     </plugin_config>
-    <width>397</width>
-    <z>1</z>
-    <height>231</height>
-    <location_x>2</location_x>
-    <location_y>203</location_y>
+    <width>395</width>
+    <z>2</z>
+    <height>319</height>
+    <location_x>3</location_x>
+    <location_y>404</location_y>
   </plugin>
 </simconf>
 
