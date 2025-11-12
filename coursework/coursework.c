@@ -3,18 +3,24 @@
 #include "dev/sht11-sensor.h"
 #include <stdio.h>
 
-// Initialise some of the constants we'll need
+// Macros for buffer size and sample interval etc
 #define BUFFER_SIZE 12
 #define SAMPLE_INTERVAL (CLOCK_CONF_SECOND / 2)
-#define READING_INTERVAL_K 12
 
-int square_root_max_iterations = 20;
-float square_root_precision = 0.001f;
-float low_deviation_threshold = 50.0f;
-float high_deviation_threshold = 200.0f;
+// Square root
+static int square_root_max_iterations = 20;
+static float square_root_precision = 0.001f;
+
+// Deviation thresholds
+static float low_deviation_threshold = 100.0f;
+static float high_deviation_threshold = 400.0f;
+
+// Light buffer
 float light_buffer[BUFFER_SIZE];
 static int count = 0;
+static int k = 12;
 
+// ===== CUSTOM PRINTING =====
 int d1(float f)
 {
   // Integer part of the float
@@ -30,6 +36,24 @@ unsigned int d2(float f)
     return(1000*(d1(f)-f));
 }
 
+void printFloat(float f)
+{
+  // Using the above functions, print a float
+  printf("%d.%d", d1(f), d2(f));
+}
+
+void printCollection(float collection[], int degree)
+{
+  printf("[ ");
+  int i = 0;
+  for (i = 0; i < degree; i++) {
+    printFloat(collection[i]);
+    printf(" ");
+  }
+  printf("]\n");
+}
+
+// ===== MEASUREMENTS =====
 float getLight(void)
 {
   float V_sensor = 1.5 * light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC)/4096;
@@ -39,28 +63,19 @@ float getLight(void)
   return light_lx;
 }
 
-void printCollection(float collection[], int degree)
-{
-  int i = 0;
-  printf("[ ");
-
-  for (i = 0; i < degree; i++) {
-    printf("%d.%d ", d1(collection[i]), d2(collection[i]));
-  }
-
-  printf("]\n");
-}
-
+// ===== BUFFER MANAGEMENT =====
 void updateBuffer(void)
 {
+  // Record a new value to the buffer at the current count position
   float light = getLight();
   light_buffer[count] = light;
   count++;
 }
 
+// ===== CALCULATIONS =====
 float calculateSquareRoot(float value)
 {
-  if (value <= 0) return 0;
+  if (value <= 0) return 0; // Catch-all for negatives or 0
 
   // Calculate the square root using Babylonian method like seen in the labs, except that the initial value should be somewhat close to the real value, so let's use a heuristic sqrt value
   float difference = 0.0;
@@ -92,6 +107,7 @@ float calculateMean(float collection[], int start_index, int end_index)
 
 float calculateStandardDeviation(float collection[], float mean, int start_index, int end_index)
 {
+  // Calculate the standard deviation using the functions I defined above
   int value_count = end_index - start_index;
   float variance_sum = 0;
 
@@ -105,8 +121,11 @@ float calculateStandardDeviation(float collection[], float mean, int start_index
   return standard_deviation;
 }
 
+// ===== UTILITY FUNCTIONS =====
 int findAggregation(float std_dev)
 {
+  // From the standard deviation, find which of the aggregation values should be used
+  // The specification defines three types of aggregation: every 12 values (full), every 4, and every 1 (no aggregation)
   if (std_dev < low_deviation_threshold) {
     printf("Aggregation = 12-into-1.\n");
     return 12;
@@ -119,6 +138,53 @@ int findAggregation(float std_dev)
 
   printf("No aggregation needed.\n");
   return 1;
+}
+
+void processCollection(float collection[])
+{
+  // Take in a collection of floats (e.g: light_buffer) and do the following:
+  // 1. Print the whole collection.
+  // 2. Calculate the standard deviation.
+  // 3. Decide upon an aggregation degree based on that standard deviation.
+  // 4. Perform aggregation and print.
+
+  // Print buffer
+  printf("Buffer = ");
+  printCollection(light_buffer, count);
+
+  // Find standard deviation
+  float mean = calculateMean(light_buffer, 0, count);
+  float standard_deviation = calculateStandardDeviation(light_buffer, mean, 0, count);
+  printf("Standard deviation = ");
+  printFloat(standard_deviation);
+  printf("\n");
+
+  // Decide upon an aggregation value based on the above deviation
+  int degree = findAggregation(standard_deviation);
+
+  // Print that aggregate collection with averages calculated using mean
+  printf("Aggregate = ");
+
+  if (degree == 1) printCollection(light_buffer, count); // For 1-into-1, the array doesn't change
+
+  if (degree == 4) {
+    // If we need 4-into-1, we need to aggregate every 4 values into one average
+    int aggregate_count = BUFFER_SIZE / degree; // If we want to aggregate n values into 1, we will end up with (total / n) aggregate results
+
+    float aggregate_buffer[aggregate_count];
+
+    int i = 0;
+    for (i = 0; i < aggregate_count; i++)
+    {
+      aggregate_buffer[i] = calculateMean(light_buffer, (i * degree), ((i + 1) * degree));
+    }
+
+    printCollection(aggregate_buffer, aggregate_count);
+  }
+
+  if (degree == 12) printFloat(mean); // For 12-into-1 the entire array is averaged, already did this earlier so we can save some computation by reusing 
+
+  printf("\n\n");
 }
 
 /*---------------------------------------------------------------------------*/
@@ -142,53 +208,8 @@ PROCESS_THREAD(coursework_process, ev, data)
 
       // If we have filled the buffer, we need to process
       if (count == BUFFER_SIZE) {
-        // First print all the values as shown in the screenshot in the brief
-        printf("Light buffer = ");
-        printCollection(light_buffer, count);
-
-        // Calculate mean of these values
-        float mean = calculateMean(light_buffer, 0, count);
-
-        // Calculate standard deviation
-        float standard_deviation = calculateStandardDeviation(light_buffer, mean, 0, count);
-
-        // Print these values as shown in the screenshot in brief
-        printf("Standard deviation = %d.%d\n", d1(standard_deviation), d2(standard_deviation));
-
-        // Find the aggregation from the standard deviation (returns 12, 4, 1)
-        int degree = findAggregation(standard_deviation);
-
-        // Calculate and print the aggregate array
-        printf("Aggregate = ");
-
-        if (degree == 1)
-        {
-          // 1-into-1 aggregation, so the array doesn't change
-          printCollection(light_buffer, count);
-        }
-
-        if (degree == 4)
-        {
-          // 4-into-1 aggregation, array length is 4 and will contain the mean of each 3 values in light buffer
-          float aggregate_buffer[degree];
-
-          int i = 0;
-          for (i = 0; i < degree; i++)
-          {
-            aggregate_buffer[i] = calculateMean(light_buffer, (i * degree), ((i + 1) * degree));
-          }
-
-          printCollection(aggregate_buffer, degree);
-        }
-
-        if (degree == 12)
-        {
-          // 12-into-1 aggregation, array returned is just one float value (mean of whole array)
-          printf("%d.%d", d1(mean), d2(mean));
-        }
-
-        printf("\n\n");
-        count = 0;
+        processCollection(light_buffer);
+        count = 0; // Reset the counter so we start overwriting values according to FIFO
       }
 
       // Restart the timer

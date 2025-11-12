@@ -74,7 +74,7 @@
       <viewport>0.9090909090909091 0.0 0.0 0.9090909090909091 180.86203909613943 114.85563742847272</viewport>
     </plugin_config>
     <width>400</width>
-    <z>4</z>
+    <z>3</z>
     <height>400</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -84,23 +84,11 @@
     <plugin_config>
       <filter />
     </plugin_config>
-    <width>1363</width>
+    <width>1020</width>
     <z>1</z>
     <height>563</height>
     <location_x>400</location_x>
     <location_y>160</location_y>
-  </plugin>
-  <plugin>
-    se.sics.cooja.plugins.Notes
-    <plugin_config>
-      <notes>Enter notes here</notes>
-      <decorations>true</decorations>
-    </plugin_config>
-    <width>232</width>
-    <z>3</z>
-    <height>160</height>
-    <location_x>680</location_x>
-    <location_y>0</location_y>
   </plugin>
   <plugin>
     se.sics.cooja.plugins.MoteInterfaceViewer
