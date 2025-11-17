@@ -12,7 +12,7 @@ float calculateSquareRoot(float value)
     float new_x = 0.5f * (x + value / x);
     difference = new_x - x;
 
-    // If 
+    // If difference is within precision bounds, we can stop
     if (difference < square_root_precision && difference > -square_root_precision) break;
 
     x = new_x;
