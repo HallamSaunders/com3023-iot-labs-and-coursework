@@ -44,11 +44,12 @@ void printFloat(float f)
 
 void printCollection(float collection[], int degree)
 {
+  // Iterate through the given collection of floats (e.g light_buffer) and print it using the above function
   printf("[ ");
   int i = 0;
   for (i = 0; i < degree; i++) {
     printFloat(collection[i]);
-    printf(" ");
+    printf(", ");
   }
   printf("]\n");
 }
@@ -77,7 +78,8 @@ float calculateSquareRoot(float value)
 {
   if (value <= 0) return 0; // Catch-all for negatives or 0
 
-  // Calculate the square root using Babylonian method like seen in the labs, except that the initial value should be somewhat close to the real value, so let's use a heuristic sqrt value
+  // Calculate the square root using Babylonian method like seen in the labs
+  // Initial value should be somewhat close to the real value, so start off with value/2
   float difference = 0.0;
   float x = value / 2.0f;
   int i = 0;
@@ -85,6 +87,7 @@ float calculateSquareRoot(float value)
     float new_x = 0.5f * (x + value / x);
     difference = new_x - x;
 
+    // If 
     if (difference < square_root_precision && difference > -square_root_precision) break;
 
     x = new_x;
@@ -116,7 +119,7 @@ float calculateStandardDeviation(float collection[], float mean, int start_index
     float deviation = collection[i] - mean;
     variance_sum += deviation * deviation;
   }
-  float variance = variance_sum / (value_count - 1);
+  float variance = variance_sum / value_count;
   float standard_deviation = calculateSquareRoot(variance);
   return standard_deviation;
 }
@@ -149,13 +152,13 @@ void processCollection(float collection[])
   // 4. Perform aggregation and print.
 
   // Print buffer
-  printf("Buffer = ");
+  printf("B = ");
   printCollection(light_buffer, count);
 
   // Find standard deviation
   float mean = calculateMean(light_buffer, 0, count);
   float standard_deviation = calculateStandardDeviation(light_buffer, mean, 0, count);
-  printf("Standard deviation = ");
+  printf("StdDev = ");
   printFloat(standard_deviation);
   printf("\n");
 
@@ -163,7 +166,7 @@ void processCollection(float collection[])
   int degree = findAggregation(standard_deviation);
 
   // Print that aggregate collection with averages calculated using mean
-  printf("Aggregate = ");
+  printf("X = ");
 
   if (degree == 1) printCollection(light_buffer, count); // For 1-into-1, the array doesn't change
 
