@@ -1,5 +1,58 @@
-\documentclass[11pt,a4paper]{report}
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{minted}
+\usepackage{caption}
+\usepackage{float}
+
 
 \begin{document}
-Proposal
+\title{COM3023 Coursework Submission}
+\author{Hallam Saunders (URN: 6788550)}
+\date{\today}
+\maketitle
+
+\section*{Demonstration Screenshots}
+
+\subsection*{12-into-1 Aggregation}
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{../coursework-screenshots/12-into-1-aggregation.png}
+	\caption{12-into-1 aggregation indicating little activity.}
+	\label{fig:12-into-1-aggregation}
+\end{figure}
+
+\subsection*{4-into-1 Aggregation}
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{../coursework-screenshots/4-into-1-aggregation.png}
+	\caption{4-into-1 aggregation indicating some activity.}
+	\label{fig:4-into-1-aggregation}
+\end{figure}
+
+\subsection*{No Aggregation}
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{../coursework-screenshots/no-aggregation.png}
+	\caption{No aggregation indicating high activity.}
+	\label{fig:no-aggregation}
+\end{figure}
+
+\pagebreak
+
+\section*{Source Code}
+
+\subsection*{Pre-Demonstration}
+Below is the source code for basic functionality required for the coursework, before the code demonstration task was implemented.
+
+\sloppy
+\noindent
+\inputminted[linenos, breaklines]{c}{../coursework/coursework.c}
+\fussy
+
+\pagebreak
+
+\subsection*{Post-Demonstration}
+Below is the source code after implementing the code demonstration task.
 \end{document}

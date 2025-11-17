@@ -1,0 +1,227 @@
+\begin{MintedVerbatim}[commandchars=\\\{\}]
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZdq{}contiki.h\PYGZdq{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZdq{}dev/light\PYGZhy{}sensor.h\PYGZdq{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZdq{}dev/sht11\PYGZhy{}sensor.h\PYGZdq{}}
+\PYG{c+cp}{\PYGZsh{}include}\PYG{+w}{ }\PYG{c+cpf}{\PYGZlt{}stdio.h\PYGZgt{}}
+
+\PYG{c+c1}{// Macros for buffer size and sample interval etc}
+\PYG{c+cp}{\PYGZsh{}define BUFFER\PYGZus{}SIZE 12}
+\PYG{c+cp}{\PYGZsh{}define SAMPLE\PYGZus{}INTERVAL (CLOCK\PYGZus{}CONF\PYGZus{}SECOND / 2)}
+
+\PYG{c+c1}{// Square root}
+\PYG{k}{static}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{square\PYGZus{}root\PYGZus{}max\PYGZus{}iterations}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{20}\PYG{p}{;}
+\PYG{k}{static}\PYG{+w}{ }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{square\PYGZus{}root\PYGZus{}precision}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{0.001f}\PYG{p}{;}
+
+\PYG{c+c1}{// Deviation thresholds}
+\PYG{k}{static}\PYG{+w}{ }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{low\PYGZus{}deviation\PYGZus{}threshold}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{100.0f}\PYG{p}{;}
+\PYG{k}{static}\PYG{+w}{ }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{high\PYGZus{}deviation\PYGZus{}threshold}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{400.0f}\PYG{p}{;}
+
+\PYG{c+c1}{// Light buffer}
+\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{light\PYGZus{}buffer}\PYG{p}{[}\PYG{n}{BUFFER\PYGZus{}SIZE}\PYG{p}{];}
+\PYG{k}{static}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{count}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{k}{static}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{k}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{12}\PYG{p}{;}
+
+\PYG{c+c1}{// ===== CUSTOM PRINTING =====}
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n+nf}{d1}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{f}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// Integer part of the float}
+\PYG{+w}{  }\PYG{k}{return}\PYG{p}{((}\PYG{k+kt}{int}\PYG{p}{)}\PYG{n}{f}\PYG{p}{);}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{unsigned}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n+nf}{d2}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{f}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// Find decimal part of the float}
+\PYG{+w}{  }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{f}\PYG{o}{\PYGZgt{}}\PYG{l+m+mi}{0}\PYG{p}{)}
+\PYG{+w}{    }\PYG{k}{return}\PYG{p}{(}\PYG{l+m+mi}{1000}\PYG{o}{*}\PYG{p}{(}\PYG{n}{f}\PYG{o}{\PYGZhy{}}\PYG{n}{d1}\PYG{p}{(}\PYG{n}{f}\PYG{p}{)));}
+\PYG{+w}{  }\PYG{k}{else}
+\PYG{+w}{    }\PYG{k}{return}\PYG{p}{(}\PYG{l+m+mi}{1000}\PYG{o}{*}\PYG{p}{(}\PYG{n}{d1}\PYG{p}{(}\PYG{n}{f}\PYG{p}{)}\PYG{o}{\PYGZhy{}}\PYG{n}{f}\PYG{p}{));}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{printFloat}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{f}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// Using the above functions, print a float}
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}\PYGZpc{}d.\PYGZpc{}d\PYGZdq{}}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{d1}\PYG{p}{(}\PYG{n}{f}\PYG{p}{),}\PYG{+w}{ }\PYG{n}{d2}\PYG{p}{(}\PYG{n}{f}\PYG{p}{));}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{printCollection}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{collection}\PYG{p}{[],}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{degree}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// Iterate through the given collection of floats (e.g light\PYGZus{}buffer) and print it using the above function}
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}[ \PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{  }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{degree}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{n}{printFloat}\PYG{p}{(}\PYG{n}{collection}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]);}
+\PYG{+w}{    }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}, \PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}]}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+c1}{// ===== MEASUREMENTS =====}
+\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n+nf}{getLight}\PYG{p}{(}\PYG{k+kt}{void}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{V\PYGZus{}sensor}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{1.5}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n}{light\PYGZus{}sensor}\PYG{p}{.}\PYG{n}{value}\PYG{p}{(}\PYG{n}{LIGHT\PYGZus{}SENSOR\PYGZus{}PHOTOSYNTHETIC}\PYG{p}{)}\PYG{o}{/}\PYG{l+m+mi}{4096}\PYG{p}{;}
+\PYG{+w}{                }\PYG{c+c1}{// \PYGZca{} ADC\PYGZhy{}12 uses 1.5V\PYGZus{}REF}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{I}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{V\PYGZus{}sensor}\PYG{o}{/}\PYG{l+m+mi}{100000}\PYG{p}{;}\PYG{+w}{         }\PYG{c+c1}{// xm1000 uses 100kohm resistor}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{light\PYGZus{}lx}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{0.625}\PYG{o}{*}\PYG{l+m+mf}{1e6}\PYG{o}{*}\PYG{n}{I}\PYG{o}{*}\PYG{l+m+mi}{1000}\PYG{p}{;}\PYG{+w}{ }\PYG{c+c1}{// convert from current to light intensity}
+\PYG{+w}{  }\PYG{k}{return}\PYG{+w}{ }\PYG{n}{light\PYGZus{}lx}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+c1}{// ===== BUFFER MANAGEMENT =====}
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{updateBuffer}\PYG{p}{(}\PYG{k+kt}{void}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// Record a new value to the buffer at the current count position}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{light}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{getLight}\PYG{p}{();}
+\PYG{+w}{  }\PYG{n}{light\PYGZus{}buffer}\PYG{p}{[}\PYG{n}{count}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{light}\PYG{p}{;}
+\PYG{+w}{  }\PYG{n}{count}\PYG{o}{++}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+c1}{// ===== CALCULATIONS =====}
+\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n+nf}{calculateSquareRoot}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{value}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{value}\PYG{+w}{ }\PYG{o}{\PYGZlt{}=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{)}\PYG{+w}{ }\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{c+c1}{// Catch\PYGZhy{}all for negatives or 0}
+
+\PYG{+w}{  }\PYG{c+c1}{// Calculate the square root using Babylonian method like seen in the labs}
+\PYG{+w}{  }\PYG{c+c1}{// Initial value should be somewhat close to the real value, so start off with value/2}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{difference}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{0.0}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{x}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{value}\PYG{+w}{ }\PYG{o}{/}\PYG{+w}{ }\PYG{l+m+mf}{2.0f}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{square\PYGZus{}root\PYGZus{}max\PYGZus{}iterations}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{new\PYGZus{}x}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mf}{0.5f}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{x}\PYG{+w}{ }\PYG{o}{+}\PYG{+w}{ }\PYG{n}{value}\PYG{+w}{ }\PYG{o}{/}\PYG{+w}{ }\PYG{n}{x}\PYG{p}{);}
+\PYG{+w}{    }\PYG{n}{difference}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{new\PYGZus{}x}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{x}\PYG{p}{;}
+
+\PYG{+w}{    }\PYG{c+c1}{// If }
+\PYG{+w}{    }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{difference}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{square\PYGZus{}root\PYGZus{}precision}\PYG{+w}{ }\PYG{o}{\PYGZam{}\PYGZam{}}\PYG{+w}{ }\PYG{n}{difference}\PYG{+w}{ }\PYG{o}{\PYGZgt{}}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{n}{square\PYGZus{}root\PYGZus{}precision}\PYG{p}{)}\PYG{+w}{ }\PYG{k}{break}\PYG{p}{;}
+
+\PYG{+w}{    }\PYG{n}{x}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{new\PYGZus{}x}\PYG{p}{;}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+\PYG{+w}{  }\PYG{k}{return}\PYG{+w}{ }\PYG{n}{x}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n+nf}{calculateMean}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{collection}\PYG{p}{[],}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{end\PYGZus{}index}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{total}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{value\PYGZus{}count}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{end\PYGZus{}index}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{;}
+
+\PYG{+w}{  }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{end\PYGZus{}index}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{n}{total}\PYG{+w}{ }\PYG{o}{+=}\PYG{+w}{ }\PYG{n}{collection}\PYG{p}{[}\PYG{n}{i}\PYG{p}{];}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{mean}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{total}\PYG{+w}{ }\PYG{o}{/}\PYG{+w}{ }\PYG{n}{value\PYGZus{}count}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k}{return}\PYG{+w}{ }\PYG{n}{mean}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n+nf}{calculateStandardDeviation}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{collection}\PYG{p}{[],}\PYG{+w}{ }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{mean}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{,}\PYG{+w}{ }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{end\PYGZus{}index}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// Calculate the standard deviation using the functions I defined above}
+\PYG{+w}{  }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{value\PYGZus{}count}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{end\PYGZus{}index}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{variance\PYGZus{}sum}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+
+\PYG{+w}{  }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{start\PYGZus{}index}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{end\PYGZus{}index}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{deviation}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{collection}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{\PYGZhy{}}\PYG{+w}{ }\PYG{n}{mean}\PYG{p}{;}
+\PYG{+w}{    }\PYG{n}{variance\PYGZus{}sum}\PYG{+w}{ }\PYG{o}{+=}\PYG{+w}{ }\PYG{n}{deviation}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n}{deviation}\PYG{p}{;}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{variance}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{variance\PYGZus{}sum}\PYG{+w}{ }\PYG{o}{/}\PYG{+w}{ }\PYG{n}{value\PYGZus{}count}\PYG{p}{;}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{standard\PYGZus{}deviation}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{calculateSquareRoot}\PYG{p}{(}\PYG{n}{variance}\PYG{p}{);}
+\PYG{+w}{  }\PYG{k}{return}\PYG{+w}{ }\PYG{n}{standard\PYGZus{}deviation}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+c1}{// ===== UTILITY FUNCTIONS =====}
+\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n+nf}{findAggregation}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{std\PYGZus{}dev}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// From the standard deviation, find which of the aggregation values should be used}
+\PYG{+w}{  }\PYG{c+c1}{// The specification defines three types of aggregation: every 12 values (full), every 4, and every 1 (no aggregation)}
+\PYG{+w}{  }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{std\PYGZus{}dev}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{low\PYGZus{}deviation\PYGZus{}threshold}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}Aggregation = 12\PYGZhy{}into\PYGZhy{}1.}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{12}\PYG{p}{;}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{  }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{std\PYGZus{}dev}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{high\PYGZus{}deviation\PYGZus{}threshold}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}Aggregation = 4\PYGZhy{}into\PYGZhy{}1.}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{    }\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{4}\PYG{p}{;}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}No aggregation needed.}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{  }\PYG{k}{return}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{;}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{k+kt}{void}\PYG{+w}{ }\PYG{n+nf}{processCollection}\PYG{p}{(}\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{collection}\PYG{p}{[])}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{c+c1}{// Take in a collection of floats (e.g: light\PYGZus{}buffer) and do the following:}
+\PYG{+w}{  }\PYG{c+c1}{// 1. Print the whole collection.}
+\PYG{+w}{  }\PYG{c+c1}{// 2. Calculate the standard deviation.}
+\PYG{+w}{  }\PYG{c+c1}{// 3. Decide upon an aggregation degree based on that standard deviation.}
+\PYG{+w}{  }\PYG{c+c1}{// 4. Perform aggregation and print.}
+
+\PYG{+w}{  }\PYG{c+c1}{// Print buffer}
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}B = \PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{  }\PYG{n}{printCollection}\PYG{p}{(}\PYG{n}{light\PYGZus{}buffer}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{count}\PYG{p}{);}
+
+\PYG{+w}{  }\PYG{c+c1}{// Find standard deviation}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{mean}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{calculateMean}\PYG{p}{(}\PYG{n}{light\PYGZus{}buffer}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{count}\PYG{p}{);}
+\PYG{+w}{  }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{standard\PYGZus{}deviation}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{calculateStandardDeviation}\PYG{p}{(}\PYG{n}{light\PYGZus{}buffer}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{mean}\PYG{p}{,}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{count}\PYG{p}{);}
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}StdDev = \PYGZdq{}}\PYG{p}{);}
+\PYG{+w}{  }\PYG{n}{printFloat}\PYG{p}{(}\PYG{n}{standard\PYGZus{}deviation}\PYG{p}{);}
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}}\PYG{l+s+se}{\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+
+\PYG{+w}{  }\PYG{c+c1}{// Decide upon an aggregation value based on the above deviation}
+\PYG{+w}{  }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{degree}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{findAggregation}\PYG{p}{(}\PYG{n}{standard\PYGZus{}deviation}\PYG{p}{);}
+
+\PYG{+w}{  }\PYG{c+c1}{// Print that aggregate collection with averages calculated using mean}
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}X = \PYGZdq{}}\PYG{p}{);}
+
+\PYG{+w}{  }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{degree}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{+w}{ }\PYG{n}{printCollection}\PYG{p}{(}\PYG{n}{light\PYGZus{}buffer}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{count}\PYG{p}{);}\PYG{+w}{ }\PYG{c+c1}{// For 1\PYGZhy{}into\PYGZhy{}1, the array doesn\PYGZsq{}t change}
+
+\PYG{+w}{  }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{degree}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{l+m+mi}{4}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{c+c1}{// If we need 4\PYGZhy{}into\PYGZhy{}1, we need to aggregate every 4 values into one average}
+\PYG{+w}{    }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{aggregate\PYGZus{}count}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{BUFFER\PYGZus{}SIZE}\PYG{+w}{ }\PYG{o}{/}\PYG{+w}{ }\PYG{n}{degree}\PYG{p}{;}\PYG{+w}{ }\PYG{c+c1}{// If we want to aggregate n values into 1, we will end up with (total / n) aggregate results}
+
+\PYG{+w}{    }\PYG{k+kt}{float}\PYG{+w}{ }\PYG{n}{aggregate\PYGZus{}buffer}\PYG{p}{[}\PYG{n}{aggregate\PYGZus{}count}\PYG{p}{];}
+
+\PYG{+w}{    }\PYG{k+kt}{int}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}
+\PYG{+w}{    }\PYG{k}{for}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{+w}{ }\PYG{o}{\PYGZlt{}}\PYG{+w}{ }\PYG{n}{aggregate\PYGZus{}count}\PYG{p}{;}\PYG{+w}{ }\PYG{n}{i}\PYG{o}{++}\PYG{p}{)}
+\PYG{+w}{    }\PYG{p}{\PYGZob{}}
+\PYG{+w}{      }\PYG{n}{aggregate\PYGZus{}buffer}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{n}{calculateMean}\PYG{p}{(}\PYG{n}{light\PYGZus{}buffer}\PYG{p}{,}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n}{degree}\PYG{p}{),}\PYG{+w}{ }\PYG{p}{((}\PYG{n}{i}\PYG{+w}{ }\PYG{o}{+}\PYG{+w}{ }\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{+w}{ }\PYG{o}{*}\PYG{+w}{ }\PYG{n}{degree}\PYG{p}{));}
+\PYG{+w}{    }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{    }\PYG{n}{printCollection}\PYG{p}{(}\PYG{n}{aggregate\PYGZus{}buffer}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{aggregate\PYGZus{}count}\PYG{p}{);}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{  }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{degree}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{l+m+mi}{12}\PYG{p}{)}\PYG{+w}{ }\PYG{n}{printFloat}\PYG{p}{(}\PYG{n}{mean}\PYG{p}{);}\PYG{+w}{ }\PYG{c+c1}{// For 12\PYGZhy{}into\PYGZhy{}1 the entire array is averaged, already did this earlier so we can save some computation by reusing }
+
+\PYG{+w}{  }\PYG{n}{printf}\PYG{p}{(}\PYG{l+s}{\PYGZdq{}}\PYG{l+s+se}{\PYGZbs{}n\PYGZbs{}n}\PYG{l+s}{\PYGZdq{}}\PYG{p}{);}
+\PYG{p}{\PYGZcb{}}
+
+\PYG{c+cm}{/*\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}*/}
+\PYG{n}{PROCESS}\PYG{p}{(}\PYG{n}{coursework\PYGZus{}process}\PYG{p}{,}\PYG{+w}{ }\PYG{l+s}{\PYGZdq{}Coursework\PYGZdq{}}\PYG{p}{);}
+\PYG{n}{AUTOSTART\PYGZus{}PROCESSES}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{coursework\PYGZus{}process}\PYG{p}{);}
+\PYG{c+cm}{/*\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}*/}
+\PYG{n}{PROCESS\PYGZus{}THREAD}\PYG{p}{(}\PYG{n}{coursework\PYGZus{}process}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{ev}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{data}\PYG{p}{)}
+\PYG{p}{\PYGZob{}}
+\PYG{+w}{  }\PYG{k}{static}\PYG{+w}{ }\PYG{k}{struct}\PYG{+w}{ }\PYG{n+nc}{etimer}\PYG{+w}{ }\PYG{n}{timer}\PYG{p}{;}\PYG{+w}{ }\PYG{c+c1}{// Initialise a timer}
+
+\PYG{+w}{  }\PYG{n}{PROCESS\PYGZus{}BEGIN}\PYG{p}{();}
+\PYG{+w}{  }\PYG{n}{SENSORS\PYGZus{}ACTIVATE}\PYG{p}{(}\PYG{n}{light\PYGZus{}sensor}\PYG{p}{);}\PYG{+w}{ }\PYG{c+c1}{// Initialise the light sensor}
+\PYG{+w}{  }\PYG{n}{etimer\PYGZus{}set}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{timer}\PYG{p}{,}\PYG{+w}{ }\PYG{n}{SAMPLE\PYGZus{}INTERVAL}\PYG{p}{);}\PYG{+w}{ }\PYG{c+c1}{// Rate of 2 readings per second}
+
+\PYG{+w}{  }\PYG{k}{while}\PYG{p}{(}\PYG{l+m+mi}{1}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{    }\PYG{c+c1}{// Wait for timer event to do anything}
+\PYG{+w}{    }\PYG{n}{PROCESS\PYGZus{}WAIT\PYGZus{}EVENT}\PYG{p}{();}
+
+\PYG{+w}{    }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{ev}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{n}{PROCESS\PYGZus{}EVENT\PYGZus{}TIMER}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{      }\PYG{n}{updateBuffer}\PYG{p}{();}
+
+\PYG{+w}{      }\PYG{c+c1}{// If we have filled the buffer, we need to process}
+\PYG{+w}{      }\PYG{k}{if}\PYG{+w}{ }\PYG{p}{(}\PYG{n}{count}\PYG{+w}{ }\PYG{o}{==}\PYG{+w}{ }\PYG{n}{BUFFER\PYGZus{}SIZE}\PYG{p}{)}\PYG{+w}{ }\PYG{p}{\PYGZob{}}
+\PYG{+w}{        }\PYG{n}{processCollection}\PYG{p}{(}\PYG{n}{light\PYGZus{}buffer}\PYG{p}{);}
+\PYG{+w}{        }\PYG{n}{count}\PYG{+w}{ }\PYG{o}{=}\PYG{+w}{ }\PYG{l+m+mi}{0}\PYG{p}{;}\PYG{+w}{ }\PYG{c+c1}{// Reset the counter so we start overwriting values according to FIFO}
+\PYG{+w}{      }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{      }\PYG{c+c1}{// Restart the timer}
+\PYG{+w}{      }\PYG{n}{etimer\PYGZus{}reset}\PYG{p}{(}\PYG{o}{\PYGZam{}}\PYG{n}{timer}\PYG{p}{);}
+\PYG{+w}{    }\PYG{p}{\PYGZcb{}}
+\PYG{+w}{  }\PYG{p}{\PYGZcb{}}
+
+\PYG{+w}{  }\PYG{n}{PROCESS\PYGZus{}END}\PYG{p}{();}
+\PYG{p}{\PYGZcb{}}
+\PYG{c+cm}{/*\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}*/}
+\end{MintedVerbatim}
