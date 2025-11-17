@@ -11,3 +11,7 @@
 *.bbl
 *.blg
 *.fls
+*.toc
+*.out
+*.synctex.gz
+*.lof
