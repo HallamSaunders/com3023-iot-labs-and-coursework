@@ -5,6 +5,7 @@
 \usepackage{minted}
 \usepackage{caption}
 \usepackage{float}
+\usepackage{tocloft}
 
 
 \begin{document}
@@ -14,10 +15,11 @@
 \date{\today}
 \maketitle
 
-\newpage
+\clearpage
 
 \tableofcontents
-\newpage
+
+\clearpage
 
 \section{Demonstration Screenshots}
 
@@ -45,7 +47,15 @@
 	\label{fig:no-aggregation}
 \end{figure}
 
-\newpage
+\subsection{Cooja Simulation}
+\begin{figure}[h!]
+	\centering
+	\includegraphics[width=\textwidth]{screenshots/cooja-screenshot.png}
+	\caption{Cooja simulation demonstrating the full output produced.}
+	\label{fig:cooja-simulation}
+\end{figure}
+
+\clearpage
 
 \section{Source Code}
 
@@ -73,9 +83,15 @@ Below is the source code for basic functionality required for the coursework, be
 
 \fussy
 
-\pagebreak
+\clearpage
 
 \subsection{Post-Demonstration}
 Below is the source code after implementing the code demonstration task.
+
+\appendix
+\clearpage
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+\clearpage
 
 \end{document}
